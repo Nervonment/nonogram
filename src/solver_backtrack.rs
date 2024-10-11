@@ -4,7 +4,7 @@ use crate::{
     csp::{enumerate_domain, Domain, Line, VarType}, problem::Problem, solver::{Solution, Solver}
 };
 
-pub struct Solver1010 {
+pub struct SolverBacktrack {
     problem: Problem,
     width: usize,
     height: usize,
@@ -14,7 +14,7 @@ pub struct Solver1010 {
     row_assignments: Vec<Option<Line>>,
 }
 
-impl Solver for Solver1010 {
+impl Solver for SolverBacktrack {
     fn new(problem: &Problem) -> Self {
         Self {
             problem: problem.clone(),
@@ -61,7 +61,7 @@ impl Solver for Solver1010 {
     }
 }
 
-impl Solver1010 {
+impl SolverBacktrack {
     fn search(&mut self) -> Option<Solution> {
         if self.is_complete() {
             let mut grid = vec![vec![false; self.width]; self.height];
