@@ -7,6 +7,13 @@ pub struct Solution {
     pub grid: Vec<Vec<bool>>,
 }
 
+impl Solution {
+    pub fn is_correct(&self) -> bool {
+        let problem = Problem::from(self.grid.clone());
+        problem.col_info == self.problem.col_info && problem.row_info == self.problem.row_info
+    }
+}
+
 impl Display for Solution {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (r, row) in self.grid.iter().enumerate() {

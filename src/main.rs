@@ -12,9 +12,11 @@ fn main() {
     let solution = solver.solve();
 
     if solution.is_some() {
+        let solution = solution.unwrap();
+        assert!(solution.is_correct());
         println!("Solution:");
-        println!("{}", solution.unwrap());
+        println!("{}", solution);
     } else {
-        println!("There is no solution.")
+        println!("There is no solution.");
     }
 }
