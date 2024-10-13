@@ -79,6 +79,21 @@ impl SolverBacktrackInference {
             });
         }
 
+        let mut determined_cols = Vec::with_capacity(self.width);
+        let mut determined_rows = Vec::with_capacity(self.height);
+        for col in 0..self.width {
+            if self.col_domains[col].size() == 1 {
+                self.col_assignments[col] = Some(self.col_domains[col].0[0]);
+                determined_cols.push(col);
+            }
+        }
+        for row in 0..self.height {
+            if self.row_domains[row].size() == 1 {
+                self.row_assignments[row] = Some(self.row_domains[row].0[0]);
+                determined_rows.push(row);
+            }
+        }
+
         let (var_type, var_idx) = self.select_unassigned_var();
         let domain = match var_type {
             VarType::Column => &self.col_domains[var_idx],
@@ -86,85 +101,37 @@ impl SolverBacktrackInference {
         }
         .clone();
 
-        // println!(
-        //     "Trying {:?} {} ({:?} possible values)",
-        //     var_type,
-        //     var_idx,
-        //     domain.0.len()
-        // );
         for line_value in &domain.0 {
-            if self.is_assignment_consistent(&var_type, var_idx, *line_value) {
-                match var_type {
-                    VarType::Column => self.col_assignments[var_idx] = Some(*line_value),
-                    VarType::Row => self.row_assignments[var_idx] = Some(*line_value),
-                };
-                let tmp_domains = (self.col_domains.clone(), self.row_domains.clone());
-                match var_type {
-                    VarType::Column => self.col_domains[var_idx] = Domain(vec![*line_value]),
-                    VarType::Row => self.row_domains[var_idx] = Domain(vec![*line_value]),
-                }
-
-                // println!("{:?} {} <- {}", var_type, var_idx, line_value);
-                // for row in 0..self.height {
-                //     for col in 0..self.width {
-                //         let ch;
-                //         if self.col_assignments[col].is_some() {
-                //             if self.row_assignments[row].is_some() {
-                //                 if self.col_assignments[col].unwrap() & (1 << row) != 0
-                //                     && self.row_assignments[row].unwrap() & (1 << col) != 0
-                //                 {
-                //                     ch = '🟪';
-                //                 } else if self.col_assignments[col].unwrap() & (1 << row) != 0
-                //                     && self.row_assignments[row].unwrap() & (1 << col) == 0
-                //                 {
-                //                     ch = '🟥';
-                //                 } else if self.col_assignments[col].unwrap() & (1 << row) == 0
-                //                     && self.row_assignments[row].unwrap() & (1 << col) != 0
-                //                 {
-                //                     ch = '🟦';
-                //                 } else {
-                //                     ch = '⬛';
-                //                 }
-                //             } else {
-                //                 if self.col_assignments[col].unwrap() & (1 << row) != 0 {
-                //                     ch = '🟥';
-                //                 } else {
-                //                     ch = '⬛';
-                //                 }
-                //             }
-                //         } else {
-                //             if self.row_assignments[row].is_some() {
-                //                 if self.row_assignments[row].unwrap() & (1 << col) != 0 {
-                //                     ch = '🟦';
-                //                 } else {
-                //                     ch = '⬛';
-                //                 }
-                //             } else {
-                //                 ch = '⬛';
-                //             }
-                //         }
-                //         print!("{}", ch);
-                //     }
-                //     println!();
-                // }
-                // println!();
-
-                self.inference();
-
-                let res = self.search();
-                if res.is_some() {
-                    return res;
-                }
-
-                match var_type {
-                    VarType::Column => self.col_assignments[var_idx] = None,
-                    VarType::Row => self.row_assignments[var_idx] = None,
-                };
-                self.col_domains = tmp_domains.0;
-                self.row_domains = tmp_domains.1;
-            } else {
-                // println!("failed");
+            match var_type {
+                VarType::Column => self.col_assignments[var_idx] = Some(*line_value),
+                VarType::Row => self.row_assignments[var_idx] = Some(*line_value),
+            };
+            let tmp_domains = (self.col_domains.clone(), self.row_domains.clone());
+            match var_type {
+                VarType::Column => self.col_domains[var_idx] = Domain(vec![*line_value]),
+                VarType::Row => self.row_domains[var_idx] = Domain(vec![*line_value]),
             }
+
+            self.inference_single_var(&var_type, var_idx);
+
+            let res = self.search();
+            if res.is_some() {
+                return res;
+            }
+
+            match var_type {
+                VarType::Column => self.col_assignments[var_idx] = None,
+                VarType::Row => self.row_assignments[var_idx] = None,
+            };
+            self.col_domains = tmp_domains.0;
+            self.row_domains = tmp_domains.1;
+        }
+
+        for col in determined_cols {
+            self.col_assignments[col] = None;
+        }
+        for row in determined_rows {
+            self.row_assignments[row] = None;
         }
 
         None
@@ -191,32 +158,6 @@ impl SolverBacktrackInference {
             }
         }
         res
-    }
-
-    fn is_assignment_consistent(&self, var_type: &VarType, var_idx: usize, value: Line) -> bool {
-        match var_type {
-            VarType::Row => {
-                for col in 0..self.width {
-                    if self.col_assignments[col].is_some()
-                        && (value & (1 << col) == 0)
-                            != (self.col_assignments[col].as_ref().unwrap() & (1 << var_idx) == 0)
-                    {
-                        return false;
-                    }
-                }
-            }
-            VarType::Column => {
-                for row in 0..self.height {
-                    if self.row_assignments[row].is_some()
-                        && (value & (1 << row) == 0)
-                            != (self.row_assignments[row].as_ref().unwrap() & (1 << var_idx) == 0)
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        true
     }
 
     fn inference(&mut self) {
@@ -282,64 +223,50 @@ impl SolverBacktrackInference {
                 break;
             }
         }
+    }
 
-        // let mut col_masks_1 = vec![Line::MAX; self.width];
-        // for col in 0..self.width {
-        //     for value in &self.col_domains[col].0 {
-        //         col_masks_1[col] &= value;
-        //     }
-        // }
-        // let mut col_masks_0 = vec![Line::MAX; self.width];
-        // for col in 0..self.width {
-        //     for value in &self.col_domains[col].0 {
-        //         col_masks_0[col] &= !value;
-        //     }
-        // }
-        // for row in 0..self.height {
-        //     for col in 0..self.width {
-        //         if col_masks_1[col] & (1 << row) != 0 {
-        //             print!("🟩");
-        //         } else if col_masks_0[col] & (1 << row) != 0 {
-        //             print!("❌");
-        //         } else {
-        //             print!("⬛");
-        //         }
-        //     }
-        //     for num in &self.problem.row_info[row] {
-        //         print!(
-        //             "{}",
-        //             [
-        //                 "0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🅰️", "🅱️", "🆎", "🆑",
-        //                 "🅾️", "🆘"
-        //             ][*num as usize]
-        //         );
-        //     }
-        //     println!();
-        // }
-        // let mut i = 0;
-        // loop {
-        //     let mut finish = true;
-        //     for col in 0..self.width {
-        //         if self.problem.col_info[col].len() > i {
-        //             finish = false;
-        //             print!(
-        //                 "{}",
-        //                 [
-        //                     "0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🅰️", "🅱️", "🆎", "🆑",
-        //                     "🅾️", "🆘"
-        //                 ][self.problem.col_info[col][i] as usize]
-        //             );
-        //         // print!("{} ", self.problem.col_info[col][i]);
-        //         } else {
-        //             print!("⬛")
-        //         }
-        //     }
-        //     println!();
-        //     if finish {
-        //         break;
-        //     }
-        //     i += 1;
-        // }
-        // println!();
+    fn inference_single_var(&mut self, var_type: &VarType, var_idx: usize) {
+        match var_type {
+            VarType::Column => {
+                let mut mask_1 = Line::MAX;
+                let mut mask_0 = Line::MAX;
+                for value in &self.col_domains[var_idx].0 {
+                    mask_1 &= value;
+                }
+                for value in &self.col_domains[var_idx].0 {
+                    mask_0 &= !value;
+                }
+                for row in 0..self.height {
+                    let before = self.row_domains[row].0.len();
+                    self.row_domains[row].0.retain(|value| {
+                        !(mask_1 & (1 << row) != 0 && value & (1 << var_idx) == 0)
+                            && !(mask_0 & (1 << row) != 0 && value & (1 << var_idx) != 0)
+                    });
+                    if before != self.row_domains[row].0.len() {
+                        self.inference_single_var(&VarType::Row, row);
+                    }
+                }
+            }
+            VarType::Row => {
+                let mut mask_1 = Line::MAX;
+                let mut mask_0 = Line::MAX;
+                for value in &self.row_domains[var_idx].0 {
+                    mask_1 &= value;
+                }
+                for value in &self.row_domains[var_idx].0 {
+                    mask_0 &= !value;
+                }
+                for col in 0..self.width {
+                    let before = self.col_domains[col].0.len();
+                    self.col_domains[col].0.retain(|value| {
+                        !(mask_1 & (1 << col) != 0 && value & (1 << var_idx) == 0)
+                            && !(mask_0 & (1 << col) != 0 && value & (1 << var_idx) != 0)
+                    });
+                    if before != self.col_domains[col].0.len() {
+                        self.inference_single_var(&VarType::Column, col);
+                    }
+                }
+            }
+        }
     }
 }

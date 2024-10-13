@@ -17,7 +17,7 @@ impl Domain {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     Column,
     Row,
