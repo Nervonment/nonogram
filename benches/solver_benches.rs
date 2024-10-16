@@ -5,16 +5,16 @@ use nonogram::{
 };
 
 fn benchmarks(c: &mut Criterion) {
-    let problem = random_nonogram(10, 10, 0.6);
-    let mut solver = SolverBacktrack::new(&problem);
+    let problem = random_nonogram(15, 15, 0.6);
     c.bench_function("Backtrack", |b| {
         b.iter(|| {
+            let mut solver = SolverBacktrack::new(&problem);
             solver.solve();
         })
     });
-    let mut solver = SolverBacktrackInference::new(&problem);
     c.bench_function("Backtrack with Inference", |b| {
         b.iter(|| {
+            let mut solver = SolverBacktrackInference::new(&problem);
             solver.solve();
         })
     });
