@@ -11,7 +11,7 @@ struct LineState {
     pub need_1: bool,
 }
 
-pub struct SolverBacktrackByCell {
+pub struct SolverBacktrackByCellReord {
     problem: Problem,
     grid: Vec<Vec<bool>>,
     width: usize,
@@ -20,7 +20,7 @@ pub struct SolverBacktrackByCell {
     row_state: Vec<LineState>,
 }
 
-impl Solver for SolverBacktrackByCell {
+impl Solver for SolverBacktrackByCellReord {
     fn new(problem: &Problem) -> Self {
         let width = problem.col_info.len();
         let height = problem.row_info.len();
@@ -73,7 +73,7 @@ impl Solver for SolverBacktrackByCell {
     }
 }
 
-impl SolverBacktrackByCell {
+impl SolverBacktrackByCellReord {
     fn search(&mut self, c: usize, r: usize) -> bool {
         let tmp_row_state = self.row_state[r].clone();
         let tmp_col_state = self.col_state[c].clone();
@@ -130,12 +130,46 @@ impl SolverBacktrackByCell {
     }
 
     fn next_cell(&self, c: usize, r: usize) -> Option<(usize, usize)> {
-        if r + 1 < self.height {
-            Some((c, r + 1))
+        if r + 1 < c {
+            if r + 1 < self.height {
+                Some((c, r + 1))
+            } else if c + 1 < self.width {
+                Some((c + 1, 0))
+            } else {
+                None
+            }
+        } else if r + 1 == c {
+            if c < self.height {
+                Some((0, c))
+            } else if c + 1 < self.width {
+                Some((c + 1, 0))
+            } else {
+                None
+            }
+        } else if r != c {
+            if c + 1 < self.width {
+                Some((c + 1, r))
+            } else if r + 1 < self.height {
+                Some((0, r + 1))
+            } else {
+                None
+            }
         } else if c + 1 < self.width {
             Some((c + 1, 0))
+        } else if r + 1 < self.height {
+            Some((0, r + 1))
         } else {
             None
+        }
+    }
+
+    pub fn test_next_cell(&self) {
+        let (mut c, mut r) = (0, 0);
+        println!("R{} C{}", r, c);
+        while let Some((c_, r_)) = self.next_cell(c, r) {
+            c = c_;
+            r = r_;
+            println!("R{} C{}", r, c);
         }
     }
 

@@ -4,19 +4,16 @@ use nonogram::{
 };
 
 fn main() {
-    let problem = random_nonogram(10, 10, 0.4);
+    let problem = random_nonogram(10, 10, 0.5);
     println!("Problem:");
     println!("{}", problem);
 
     let mut solver = SolverBacktrackInference::new(&problem);
     let solution = solver.solve();
 
-    if solution.is_some() {
-        let solution = solution.unwrap();
-        assert!(solution.is_correct());
-        println!("Solution:");
-        println!("{}", solution);
-    } else {
-        println!("There is no solution.");
-    }
+    assert!(solution.is_some());
+    let solution = solution.unwrap();
+    assert!(solution.is_correct());
+    println!("Solution:");
+    println!("{}", solution);
 }
