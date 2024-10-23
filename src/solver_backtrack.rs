@@ -1,7 +1,7 @@
-// This solver is written on 2024/10/10 so it's named solver_1010.
-
 use crate::{
-    csp::{enumerate_domain, Domain, Line, VarType}, problem::Problem, solver::{Solution, Solver}
+    csp::{enumerate_domain, Domain, Line, VarType},
+    problem::Problem,
+    solver::{Solution, Solver, UniqueSolutionResult},
 };
 
 pub struct SolverBacktrack {
@@ -12,6 +12,8 @@ pub struct SolverBacktrack {
     row_domains: Vec<Domain>,
     col_assignments: Vec<Option<Line>>,
     row_assignments: Vec<Option<Line>>,
+    solution_cnt: u32,
+    solution: Option<Solution>,
 }
 
 impl Solver for SolverBacktrack {
@@ -24,16 +26,45 @@ impl Solver for SolverBacktrack {
             row_domains: vec![],
             col_assignments: vec![],
             row_assignments: vec![],
+            solution_cnt: 0,
+            solution: None,
         }
     }
 
-    fn solve(&mut self) -> Option<Solution> {
+    fn any_solution(&mut self) -> Option<Solution> {
+        self.init();
+        if self.search(1) {
+            return self.solution.clone();
+        }
+        None
+    }
+
+    fn unique_solution(&mut self) -> UniqueSolutionResult {
+        self.init();
+        self.search(2);
+        UniqueSolutionResult {
+            solution: self.solution.clone(),
+            is_unique: self.solution_cnt == 1,
+        }
+    }
+
+    fn solution_cnt(&mut self) -> u32 {
+        self.init();
+        self.search(u32::MAX);
+        self.solution_cnt
+    }
+}
+
+impl SolverBacktrack {
+    fn init(&mut self) {
         self.width = self.problem.col_info.len();
         self.height = self.problem.row_info.len();
         self.col_domains = vec![Domain::new(); self.width];
         self.row_domains = vec![Domain::new(); self.height];
         self.col_assignments = vec![None; self.width];
         self.row_assignments = vec![None; self.height];
+        self.solution_cnt = 0;
+        self.solution = None;
 
         for col in 0..self.width {
             enumerate_domain(
@@ -56,26 +87,16 @@ impl Solver for SolverBacktrack {
                 &mut self.row_domains[row],
             );
         }
-
-        self.search()
     }
-}
 
-impl SolverBacktrack {
-    fn search(&mut self) -> Option<Solution> {
+    // `true` iff there is some solution
+    fn search(&mut self, solution_cnt_needed: u32) -> bool {
         if self.is_complete() {
-            let mut grid = vec![vec![false; self.width]; self.height];
-            for row in 0..self.height {
-                for col in 0..self.width {
-                    if self.col_assignments[col].unwrap() & (1 << row) != 0 {
-                        grid[row][col] = true;
-                    }
-                }
+            self.solution_cnt += 1;
+            if self.solution.is_none() {
+                self.solution = Some(self.to_solution());
             }
-            return Some(Solution {
-                problem: self.problem.clone(),
-                grid,
-            });
+            return true;
         }
 
         let (var_type, var_idx) = self.select_unassigned_var();
@@ -90,10 +111,11 @@ impl SolverBacktrack {
                     VarType::Column => self.col_assignments[var_idx] = Some(*line_value),
                     VarType::Row => self.row_assignments[var_idx] = Some(*line_value),
                 };
-                let res = self.search();
-                if res.is_some() {
-                    return res;
+
+                if self.search(solution_cnt_needed) && self.solution_cnt >= solution_cnt_needed {
+                    return true;
                 }
+
                 match var_type {
                     VarType::Column => self.col_assignments[var_idx] = None,
                     VarType::Row => self.row_assignments[var_idx] = None,
@@ -101,7 +123,7 @@ impl SolverBacktrack {
             }
         }
 
-        None
+        false
     }
 
     fn is_complete(&self) -> bool {
@@ -151,5 +173,20 @@ impl SolverBacktrack {
             }
         }
         true
+    }
+
+    fn to_solution(&self) -> Solution {
+        let mut grid = vec![vec![false; self.width]; self.height];
+        for row in 0..self.height {
+            for col in 0..self.width {
+                if self.col_assignments[col].unwrap() & (1 << row) != 0 {
+                    grid[row][col] = true;
+                }
+            }
+        }
+        Solution {
+            problem: self.problem.clone(),
+            grid,
+        }
     }
 }

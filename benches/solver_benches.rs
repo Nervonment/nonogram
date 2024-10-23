@@ -1,13 +1,16 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+};
 use nonogram::{
     generator::random_nonogram, solver::Solver, solver_backtrack::SolverBacktrack,
     solver_backtrack_by_cell::SolverBacktrackByCell,
-    solver_backtrack_by_cell_reordered::SolverBacktrackByCellReord,
     solver_backtrack_inference::SolverBacktrackInference,
 };
 
 fn with_size(c: &mut Criterion, size: usize) {
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
     let mut group = c.benchmark_group(format!("Size = {}", size));
+    group.plot_config(plot_config);
     for density in [0.6, 0.633, 0.667, 0.7, 0.733, 0.767, 0.8] {
         if size < 20 {
             group.bench_with_input(
@@ -17,7 +20,7 @@ fn with_size(c: &mut Criterion, size: usize) {
                     b.iter(|| {
                         let problem = random_nonogram(size, size, density);
                         let mut solver = SolverBacktrack::new(&problem);
-                        solver.solve();
+                        solver.any_solution();
                     })
                 },
             );
@@ -29,7 +32,7 @@ fn with_size(c: &mut Criterion, size: usize) {
                 b.iter(|| {
                     let problem = random_nonogram(size, size, density);
                     let mut solver = SolverBacktrackInference::new(&problem);
-                    solver.solve();
+                    solver.any_solution();
                 })
             },
         );
@@ -40,18 +43,7 @@ fn with_size(c: &mut Criterion, size: usize) {
                 b.iter(|| {
                     let problem = random_nonogram(size, size, density);
                     let mut solver = SolverBacktrackByCell::new(&problem);
-                    solver.solve();
-                })
-            },
-        );
-        group.bench_with_input(
-            BenchmarkId::new("Backtrack by Cell, Reordered", density),
-            &density,
-            |b, &density| {
-                b.iter(|| {
-                    let problem = random_nonogram(size, size, density);
-                    let mut solver = SolverBacktrackByCellReord::new(&problem);
-                    solver.solve();
+                    solver.any_solution();
                 })
             },
         );

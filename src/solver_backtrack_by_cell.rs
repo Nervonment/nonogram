@@ -1,6 +1,6 @@
 use crate::{
     problem::Problem,
-    solver::{Solution, Solver},
+    solver::{Solution, Solver, UniqueSolutionResult},
 };
 
 #[derive(Clone)]
@@ -18,6 +18,8 @@ pub struct SolverBacktrackByCell {
     height: usize,
     col_state: Vec<LineState>,
     row_state: Vec<LineState>,
+    solution_cnt: u32,
+    solution: Option<Solution>,
 }
 
 impl Solver for SolverBacktrackByCell {
@@ -31,11 +33,40 @@ impl Solver for SolverBacktrackByCell {
             height,
             col_state: vec![],
             row_state: vec![],
+            solution_cnt: 0,
+            solution: None,
         }
     }
 
-    fn solve(&mut self) -> Option<Solution> {
+    fn any_solution(&mut self) -> Option<Solution> {
+        self.init();
+        if self.search(0, 0, 1) {
+            return self.solution.clone();
+        }
+        None
+    }
+
+    fn unique_solution(&mut self) -> UniqueSolutionResult {
+        self.init();
+        self.search(0, 0, 2);
+        UniqueSolutionResult {
+            solution: self.solution.clone(),
+            is_unique: self.solution_cnt == 1,
+        }
+    }
+
+    fn solution_cnt(&mut self) -> u32 {
+        self.init();
+        self.search(0, 0, u32::MAX);
+        self.solution_cnt
+    }
+}
+
+impl SolverBacktrackByCell {
+    fn init(&mut self) {
+        self.col_state.clear();
         self.col_state.reserve(self.width);
+        self.grid = vec![vec![false; self.width]; self.height];
         for col in 0..self.width {
             let rest_0s_before_1 = self.height as i32 + 1
                 - self.problem.col_info[col].len() as i32
@@ -48,6 +79,7 @@ impl Solver for SolverBacktrackByCell {
             });
             self.col_state[col].rest_1s.reverse();
         }
+        self.row_state.clear();
         self.row_state.reserve(self.height);
         for row in 0..self.height {
             let rest_0s_before_1 = self.width as i32 + 1
@@ -61,20 +93,11 @@ impl Solver for SolverBacktrackByCell {
             });
             self.row_state[row].rest_1s.reverse();
         }
-
-        if self.search(0, 0) {
-            return Some(Solution {
-                problem: self.problem.clone(),
-                grid: self.grid.clone(),
-            });
-        }
-
-        None
+        self.solution_cnt = 0;
+        self.solution = None;
     }
-}
 
-impl SolverBacktrackByCell {
-    fn search(&mut self, c: usize, r: usize) -> bool {
+    fn search(&mut self, c: usize, r: usize, solution_cnt_needed: u32) -> bool {
         let tmp_row_state = self.row_state[r].clone();
         let tmp_col_state = self.col_state[c].clone();
         if self.is_assignment_valid(c, r, true) {
@@ -97,10 +120,19 @@ impl SolverBacktrackByCell {
             }
 
             if let Some((c, r)) = self.next_cell(c, r) {
-                if self.search(c, r) {
+                if self.search(c, r, solution_cnt_needed)
+                    && self.solution_cnt >= solution_cnt_needed
+                {
                     return true;
                 }
             } else {
+                self.solution_cnt += 1;
+                if self.solution.is_none() {
+                    self.solution = Some(Solution {
+                        problem: self.problem.clone(),
+                        grid: self.grid.clone(),
+                    });
+                }
                 return true;
             }
 
@@ -115,10 +147,19 @@ impl SolverBacktrackByCell {
             self.col_state[c].need_0 = false;
 
             if let Some((c, r)) = self.next_cell(c, r) {
-                if self.search(c, r) {
+                if self.search(c, r, solution_cnt_needed)
+                    && self.solution_cnt >= solution_cnt_needed
+                {
                     return true;
                 }
             } else {
+                self.solution_cnt += 1;
+                if self.solution.is_none() {
+                    self.solution = Some(Solution {
+                        problem: self.problem.clone(),
+                        grid: self.grid.clone(),
+                    });
+                }
                 return true;
             }
 
@@ -130,10 +171,34 @@ impl SolverBacktrackByCell {
     }
 
     fn next_cell(&self, c: usize, r: usize) -> Option<(usize, usize)> {
-        if r + 1 < self.height {
-            Some((c, r + 1))
+        if r + 1 < c {
+            if r + 1 < self.height {
+                Some((c, r + 1))
+            } else if c + 1 < self.width {
+                Some((c + 1, 0))
+            } else {
+                None
+            }
+        } else if r + 1 == c {
+            if c < self.height {
+                Some((0, c))
+            } else if c + 1 < self.width {
+                Some((c + 1, 0))
+            } else {
+                None
+            }
+        } else if r != c {
+            if c + 1 < self.width {
+                Some((c + 1, r))
+            } else if r + 1 < self.height {
+                Some((0, r + 1))
+            } else {
+                None
+            }
         } else if c + 1 < self.width {
             Some((c + 1, 0))
+        } else if r + 1 < self.height {
+            Some((0, r + 1))
         } else {
             None
         }

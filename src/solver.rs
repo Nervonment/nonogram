@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::problem::Problem;
 
+#[derive(Clone)]
 pub struct Solution {
     pub problem: Problem,
     pub grid: Vec<Vec<bool>>,
@@ -50,5 +51,12 @@ impl Display for Solution {
 
 pub trait Solver {
     fn new(problem: &Problem) -> Self;
-    fn solve(&mut self) -> Option<Solution>;
+    fn any_solution(&mut self) -> Option<Solution>;
+    fn unique_solution(&mut self) -> UniqueSolutionResult;
+    fn solution_cnt(&mut self) -> u32;
+}
+
+pub struct UniqueSolutionResult {
+    pub solution: Option<Solution>,
+    pub is_unique: bool
 }
