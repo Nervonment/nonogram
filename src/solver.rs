@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 use crate::problem::Problem;
 
@@ -51,6 +51,7 @@ impl Display for Solution {
 
 pub trait Solver {
     fn new(problem: &Problem) -> Self;
+    fn timeout(&mut self, duration: Duration) -> &mut Self;
     fn any_solution(&mut self) -> Option<Solution>;
     fn unique_solution(&mut self) -> UniqueSolutionResult;
     fn solution_cnt(&mut self) -> u32;

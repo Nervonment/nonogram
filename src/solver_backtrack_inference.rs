@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::{
     csp::{enumerate_domain, Domain, Line, VarType},
     problem::Problem,
@@ -14,6 +16,8 @@ pub struct SolverBacktrackInference {
     row_assignments: Vec<Option<Line>>,
     solution_cnt: u32,
     solution: Option<Solution>,
+    timeout: Duration,
+    start: Instant,
 }
 
 impl Solver for SolverBacktrackInference {
@@ -28,7 +32,14 @@ impl Solver for SolverBacktrackInference {
             row_assignments: vec![],
             solution_cnt: 0,
             solution: None,
+            timeout: Duration::from_secs(u64::MAX),
+            start: Instant::now(),
         }
+    }
+
+    fn timeout(&mut self, duration: Duration) -> &mut Self {
+        self.timeout = duration;
+        self
     }
 
     fn any_solution(&mut self) -> Option<Solution> {
@@ -65,6 +76,7 @@ impl SolverBacktrackInference {
         self.row_assignments = vec![None; self.height];
         self.solution_cnt = 0;
         self.solution = None;
+        self.start = Instant::now();
 
         for col in 0..self.width {
             enumerate_domain(
@@ -92,6 +104,9 @@ impl SolverBacktrackInference {
     }
 
     fn search(&mut self, solution_cnt_needed: u32) -> bool {
+        if Instant::now() - self.start > self.timeout {
+            return false;
+        }
         if self.is_complete() {
             self.solution_cnt += 1;
             if self.solution.is_none() {

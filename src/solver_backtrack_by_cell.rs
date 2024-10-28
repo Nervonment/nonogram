@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::{
     problem::Problem,
     solver::{Solution, Solver, UniqueSolutionResult},
@@ -20,6 +22,8 @@ pub struct SolverBacktrackByCell {
     row_state: Vec<LineState>,
     solution_cnt: u32,
     solution: Option<Solution>,
+    timeout: Duration,
+    start: Instant,
 }
 
 impl Solver for SolverBacktrackByCell {
@@ -35,7 +39,14 @@ impl Solver for SolverBacktrackByCell {
             row_state: vec![],
             solution_cnt: 0,
             solution: None,
+            timeout: Duration::from_secs(u64::MAX),
+            start: Instant::now(),
         }
+    }
+
+    fn timeout(&mut self, duration: Duration) -> &mut Self {
+        self.timeout = duration;
+        self
     }
 
     fn any_solution(&mut self) -> Option<Solution> {
@@ -64,6 +75,7 @@ impl Solver for SolverBacktrackByCell {
 
 impl SolverBacktrackByCell {
     fn init(&mut self) {
+        self.start = Instant::now();
         self.col_state.clear();
         self.col_state.reserve(self.width);
         self.grid = vec![vec![false; self.width]; self.height];
@@ -98,6 +110,9 @@ impl SolverBacktrackByCell {
     }
 
     fn search(&mut self, c: usize, r: usize, solution_cnt_needed: u32) -> bool {
+        if Instant::now() - self.start > self.timeout {
+            return false;
+        }
         let tmp_row_state = self.row_state[r].clone();
         let tmp_col_state = self.col_state[c].clone();
         if self.is_assignment_valid(c, r, true) {
